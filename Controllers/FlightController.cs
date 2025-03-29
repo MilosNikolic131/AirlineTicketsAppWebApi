@@ -1,9 +1,13 @@
 ﻿using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Utility;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Microsoft.OpenApi.Models;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+
 
 namespace AirlineTicketsAppWebApi.Controllers;
 [Route("api/[controller]")]
@@ -17,6 +21,7 @@ public class FlightController : ControllerBase
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
     }
 
+    [SubAuthorize("AGENT")]
     [HttpPost]
     public IActionResult CreateFlight(FlightDto flightDto)
     {
@@ -51,9 +56,12 @@ public class FlightController : ControllerBase
         return Ok();
     }
 
+    [SubAuthorize("ADMIN")]
     [HttpGet]
     public IActionResult GetFligths()
     {
+        var subClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
         List<Flight> flights = new List<Flight>();
 
         try
