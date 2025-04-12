@@ -1,4 +1,5 @@
 ﻿using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Utility;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -15,6 +16,7 @@ public class UserController : ControllerBase
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
     }
 
+    [SubAuthorize("ADMIN")]
     [HttpPost]
     public IActionResult CreateUser(UserDto userDto)
     {

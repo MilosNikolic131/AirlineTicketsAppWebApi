@@ -7,11 +7,12 @@ using System.IdentityModel.Tokens.Jwt;
 
 public class SubAuthorizeAttribute : AuthorizeAttribute, IAuthorizationFilter
 {
-    private readonly string _expectedSub;
+    private readonly List<string> _expectedSubs;
 
-    public SubAuthorizeAttribute(string expectedSub)
+    // Accept multiple sub values via params
+    public SubAuthorizeAttribute(params string[] expectedSubs)
     {
-        _expectedSub = expectedSub;
+        _expectedSubs = expectedSubs.ToList();
     }
 
     public void OnAuthorization(AuthorizationFilterContext context)
@@ -19,7 +20,8 @@ public class SubAuthorizeAttribute : AuthorizeAttribute, IAuthorizationFilter
         var user = context.HttpContext.User;
         var subClaim = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
-        if (subClaim != _expectedSub)
+        // Check if the sub claim exists and matches any of the expected values
+        if (subClaim == null || !_expectedSubs.Contains(subClaim))
         {
             context.Result = new ForbidResult();
         }

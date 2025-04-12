@@ -56,7 +56,7 @@ public class FlightController : ControllerBase
         return Ok();
     }
 
-    [SubAuthorize("ADMIN")]
+    [SubAuthorize("AGENT", "USER", "ADMIN")]
     [HttpGet]
     public IActionResult GetFligths()
     {
@@ -84,6 +84,7 @@ public class FlightController : ControllerBase
         return Ok(flights);
     }
 
+    [SubAuthorize("USER")]
     [HttpGet("{flightFrom}/{flightTo}")]
     public IActionResult GetFlights(FlightDestination flightFrom, FlightDestination flightTo)
     {
@@ -132,6 +133,7 @@ public class FlightController : ControllerBase
         return Ok(flights);
     }
 
+    [SubAuthorize("ADMIN")]
     [HttpPut("{flightid}")]
     public IActionResult CancelFlight(int flightid)
     {

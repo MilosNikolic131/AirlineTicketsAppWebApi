@@ -1,4 +1,5 @@
 ﻿using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Utility;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -14,6 +15,7 @@ public class ReservationController : ControllerBase
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
     }
 
+    [SubAuthorize("USER")]
     [HttpPost]
     public IActionResult ReserveFlight(ReservationDto reservationDto)
     {
@@ -62,6 +64,7 @@ public class ReservationController : ControllerBase
 
     }
 
+    [SubAuthorize("AGENT")]
     [HttpPut("{flightid}/{userid}")]
     public IActionResult ApproveReservation(int flightid, int userid)
     {
@@ -71,11 +74,11 @@ public class ReservationController : ControllerBase
             {
                 connection.Open();
 
-                string sql = $"Update reservation SET reservationstatus = '@reservationstatus' WHERE flightid = @flightid AND userid = @userid";
+                string sql = $"Update reservation SET reservationstatus = @reservationstatus WHERE flightid = @flightid AND userid = @userid";
 
                 using (var command = new SqlCommand(sql, connection))
                 {
-                    command.Parameters.AddWithValue("reservationstatus", ReservationStatus.APPROVED);
+                    command.Parameters.AddWithValue("@reservationstatus", ((int) ReservationStatus.APPROVED).ToString());
                     command.Parameters.AddWithValue("@flightid", flightid);
                     command.Parameters.AddWithValue("@userid", userid);
 
@@ -92,6 +95,7 @@ public class ReservationController : ControllerBase
         return Ok();
     }
 
+    [SubAuthorize("USER")]
     [HttpGet("{userid}")]
     public IActionResult GetReservationsById(int userid)
     {
