@@ -1,4 +1,5 @@
 ﻿using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Repositories;
 using AirlineTicketsAppWebApi.Utility;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.IdentityModel.Tokens;
+using System.Data.Common;
 using System.IdentityModel.Tokens.Jwt;
 
 
@@ -15,45 +17,50 @@ namespace AirlineTicketsAppWebApi.Controllers;
 public class FlightController : ControllerBase
 {
     private readonly string connectionString;
+    private readonly IFlightRepository _flightRepository;
+    private readonly ILogger<FlightController> _logger;
 
-    public FlightController(IConfiguration configuration)
+
+    public FlightController(IConfiguration configuration,
+                            IFlightRepository flightRepository,
+                            ILogger<FlightController> logger)
     {
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
+        _flightRepository = flightRepository;
+        _logger = logger;
     }
 
     [SubAuthorize("AGENT")]
     [HttpPost]
-    public IActionResult CreateFlight(FlightDto flightDto)
+    public async Task<IActionResult> CreateFlight([FromBody] FlightDto flightDto)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                string sql = "Insert into flight " +
-                    "(flightfrom, flightto, numoflayovers, numofseats, flightdate) values " +
-                    "(@flightfrom, @flightto, @numoflayovers, @numofseats, @flightdate)";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@flightfrom", flightDto.FlightFrom);
-                    command.Parameters.AddWithValue("@flightto", flightDto.FlightTo);
-                    command.Parameters.AddWithValue("@numoflayovers", flightDto.NumOfLayovers);
-                    command.Parameters.AddWithValue("@numofseats", flightDto.NumOfSeats);
-                    command.Parameters.AddWithValue("@flightdate", flightDto.FlightDate);
-
-                    command.ExecuteNonQuery();
-                }
-            
-            }
-        }
-        catch (Exception ex) 
-        {
-            ModelState.AddModelError("Flight", $"Exception thrown {ex.ToString()}");
             return BadRequest(ModelState);
         }
-        return Ok();
+
+        try
+        {
+            int newFlightId = await _flightRepository.CreateFlightAsync(flightDto);
+
+            flightDto.FlightId = newFlightId;
+
+            return CreatedAtAction(
+                actionName: nameof(GetFlightById),
+                routeValues: new { id = newFlightId },
+                value: flightDto);
+        }
+        catch (DbException ex)
+        {
+            _logger.LogError(ex, "Database error creating flight {FlightFrom}→{FlightTo}",
+                flightDto.FlightFrom, flightDto.FlightTo);
+            return StatusCode(500, "Failed to save flight");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating flight");
+            return StatusCode(500, "An internal error occurred");
+        }
     }
 
     [SubAuthorize("AGENT", "USER", "ADMIN")]
@@ -160,6 +167,13 @@ public class FlightController : ControllerBase
         }
 
         return Ok();
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetFlightById(int id)
+    {
+        var flight = await _flightRepository.GetFlightByIdAsync(id);
+        return flight != null ? Ok(flight) : NotFound();
     }
 
 }
