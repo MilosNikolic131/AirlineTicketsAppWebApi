@@ -33,8 +33,36 @@ public class FlightRepository : IFlightRepository
 
     public async Task<FlightDto?> GetFlightByIdAsync(int id)
     {
-        const string sql = "SELECT * FROM Flights WHERE flightid = @Id";
         await using var connection = new SqlConnection(_connectionString);
+        const string sql = "SELECT * FROM Flights WHERE flightid = @Id";
         return await connection.QuerySingleOrDefaultAsync<FlightDto>(sql, new { Id = id });
+    }
+
+    public async Task<IEnumerable<Flight>> GetFlightsFromToAsync(FlightDestination flightFrom, FlightDestination flightTo)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = @"Select * from flight where flightfrom = @flightfrom and flightto = @flightto";
+
+        return await connection.QueryAsync<Flight>(sql, new { flightFrom, flightTo });
+    }
+
+    public async Task<IEnumerable<Flight>> GetAllFlightsAsync()
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = "Select * from flight";
+
+        return await connection.QueryAsync<Flight>(sql);
+    }
+
+    public async Task<bool> CancelFlightAsync(int flightid)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = "Update flight SET flightstatus = 'canceled' WHERE flightid = @flightid";
+
+        int affectedRows = await connection.ExecuteAsync(sql, new { flightid });
+        return affectedRows > 0;
     }
 }

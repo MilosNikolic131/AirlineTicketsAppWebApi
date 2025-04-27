@@ -8,6 +8,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
 using AirlineTicketsAppWebApi.Repositories;
+using AirlineTicketsAppWebApi.Utility;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<IFlightRepository, FlightRepository>();
+//builder.Services.AddSwaggerGen(options =>
+//{
+//    options.SchemaFilter<EnumSchemaFilter>();
+//});
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

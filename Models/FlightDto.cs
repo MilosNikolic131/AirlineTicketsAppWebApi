@@ -17,7 +17,7 @@ public class FlightDto
     public FlightDestination FlightTo { get; set;}
 
     [Required]
-    [Range(1, 4)]
+    [Range(0, 4)]
     public int NumOfLayovers { get; set; }
 
     [Required]

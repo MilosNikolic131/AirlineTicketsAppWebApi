@@ -16,18 +16,18 @@ namespace AirlineTicketsAppWebApi.Controllers;
 [ApiController]
 public class FlightController : ControllerBase
 {
-    private readonly string connectionString;
-    private readonly IFlightRepository _flightRepository;
-    private readonly ILogger<FlightController> _logger;
+    private readonly string                     connectionString;
+    private readonly IFlightRepository          _flightRepository;
+    private readonly ILogger<FlightController>  _logger;
 
 
-    public FlightController(IConfiguration configuration,
-                            IFlightRepository flightRepository,
-                            ILogger<FlightController> logger)
+    public FlightController(IConfiguration              configuration,
+                            IFlightRepository           flightRepository,
+                            ILogger<FlightController>   logger)
     {
-        connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
-        _flightRepository = flightRepository;
-        _logger = logger;
+        connectionString    = configuration["ConnectionStrings:SqlServerDb"] ?? "";
+        _flightRepository   = flightRepository;
+        _logger             = logger;
     }
 
     [SubAuthorize("AGENT")]
@@ -41,9 +41,8 @@ public class FlightController : ControllerBase
 
         try
         {
-            int newFlightId = await _flightRepository.CreateFlightAsync(flightDto);
-
-            flightDto.FlightId = newFlightId;
+            int newFlightId     = await _flightRepository.CreateFlightAsync(flightDto);
+            flightDto.FlightId  = newFlightId;
 
             return CreatedAtAction(
                 actionName: nameof(GetFlightById),
@@ -52,8 +51,7 @@ public class FlightController : ControllerBase
         }
         catch (DbException ex)
         {
-            _logger.LogError(ex, "Database error creating flight {FlightFrom}→{FlightTo}",
-                flightDto.FlightFrom, flightDto.FlightTo);
+            _logger.LogError(ex, "Database error creating flight");
             return StatusCode(500, "Failed to save flight");
         }
         catch (Exception ex)
@@ -65,108 +63,63 @@ public class FlightController : ControllerBase
 
     [SubAuthorize("AGENT", "USER", "ADMIN")]
     [HttpGet]
-    public IActionResult GetFligths()
+    public async Task<IActionResult> GetFligths()
     {
-        var subClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-
-        List<Flight> flights = new List<Flight>();
-
         try
         {
             using (var connection = new SqlConnection(connectionString))
             {
                 connection.Open();
 
-                flights = HelperController.getAllFlightsList(connection).Where(flight => flight.NumOfSeats > 0).ToList();
-
-
+                var flights = await _flightRepository.GetAllFlightsAsync();
+                return Ok(flights.ToList().Where(flight => flight.NumOfSeats > 0).ToList());
             }
         }
         catch (Exception ex)
         {
-            ModelState.AddModelError("Flight", $"Exception thrown {ex.ToString()}");
-            return BadRequest(ModelState);
+            _logger.LogError(ex, "Unexpected error fetching flights");
+            return StatusCode(500, "An unexpected error occurred");
         }
-
-        return Ok(flights);
     }
 
     [SubAuthorize("USER")]
     [HttpGet("{flightFrom}/{flightTo}")]
-    public IActionResult GetFlights(FlightDestination flightFrom, FlightDestination flightTo)
+    public async Task<IActionResult> GetFlights(
+    FlightDestination flightFrom,
+    FlightDestination flightTo)
     {
-        List<Flight> flights = new List<Flight>();
-
         try
         {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
+            var flights = await _flightRepository.GetFlightsFromToAsync(flightFrom, flightTo);
+            return Ok(flights);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error fetching flights");
+            return StatusCode(500, "An unexpected error occurred");
+        }
+    }
 
-                string sql = $"Select * from flight where flightfrom = @flightfrom and flightto = @flightto";
-                
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@flightfrom", flightFrom);
-                    command.Parameters.AddWithValue("@flightto", flightTo);
+    [SubAuthorize("ADMIN")]
+    [HttpPut("cancel/{flightid}")]
+    public async Task<IActionResult> CancelFlight(int flightid)
+    {
+        try
+        {
+            bool success = await _flightRepository.CancelFlightAsync(flightid);
+            return success ? NoContent() : NotFound();
 
-                    using (var reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            Flight flight = new Flight();
-
-                            flight.FlightId = reader.GetInt32(0);
-
-                            flight.FlightFrom = (FlightDestination)Int32.Parse(reader.GetString(1));
-                            flight.FlightTo = (FlightDestination)Int32.Parse(reader.GetString(2));
-                            flight.NumOfLayovers = reader.GetInt32(3);
-                            flight.NumOfSeats = reader.GetInt32(4);
-                            flight.FlightDate = reader.GetDateTime(5);
-                            flight.FlightStatus = reader.GetString(6);
-                            flights.Add(flight);
-                        }
-                    }
-
-                }
-            }
+        }
+        catch (DbException ex)
+        {
+            _logger.LogError(ex, "Error canceling flight {FlightId}", flightid);
+            return StatusCode(500, "Failed to cancel flight");
         }
         catch (Exception ex)
         {
             ModelState.AddModelError("Flight", $"Exception thrown {ex.ToString()}");
             return BadRequest(ModelState);
         }
-
-        return Ok(flights);
-    }
-
-    [SubAuthorize("ADMIN")]
-    [HttpPut("{flightid}")]
-    public IActionResult CancelFlight(int flightid)
-    {
-        try
-        {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                string sql = $"Update flight SET flightstatus = 'canceled' WHERE flightid = @flightid";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@flightid", flightid);
-
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
-        catch(Exception ex)
-        {
-            ModelState.AddModelError("Flight", $"Exception thrown {ex.ToString()}");
-            return BadRequest(ModelState);
-        }
-
-        return Ok();
     }
 
     [HttpGet("{id}")]

@@ -1,4 +1,5 @@
-﻿namespace AirlineTicketsAppWebApi.Models;
+﻿
+namespace AirlineTicketsAppWebApi.Models;
 
 public enum FlightDestination
 {
