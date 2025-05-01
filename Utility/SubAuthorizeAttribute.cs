@@ -20,7 +20,6 @@ public class SubAuthorizeAttribute : AuthorizeAttribute, IAuthorizationFilter
         var user = context.HttpContext.User;
         var subClaim = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
 
-        // Check if the sub claim exists and matches any of the expected values
         if (subClaim == null || !_expectedSubs.Contains(subClaim))
         {
             context.Result = new ForbidResult();

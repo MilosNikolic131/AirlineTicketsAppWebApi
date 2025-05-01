@@ -10,17 +10,19 @@ namespace AirlineTicketsAppWebApi.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly string connectionString;
+    private readonly IdentityController identityController;
 
-    public AuthController(IConfiguration configuration)
+    public AuthController(IConfiguration configuration, IdentityController _identityController)
     {
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
+        identityController = _identityController;
     }
 
     [HttpPost]
     public IActionResult Login(UserDto userDto)
     {
         User user = new User();
-        IdentityController identityController = new IdentityController();
+        //IdentityController identityController = new IdentityController();
 
         try
         {

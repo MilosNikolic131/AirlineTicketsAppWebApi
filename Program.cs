@@ -9,6 +9,10 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
 using AirlineTicketsAppWebApi.Repositories;
 using AirlineTicketsAppWebApi.Utility;
+using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Service;
+using Microsoft.AspNetCore.Identity;
+using AirlineTicketsAppWebApi.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,7 +22,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         x.TokenValidationParameters = new TokenValidationParameters
         {
-            IssuerSigningKey = new SymmetricSecurityKey("KeyTestKeyTestKeyTestKeyTestKeyTestKeyTestKeyTest"u8.ToArray()),
+            //IssuerSigningKey = new SymmetricSecurityKey("KeyTestKeyTestKeyTestKeyTestKeyTestKeyTestKeyTest"u8.ToArray()),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
             ValidIssuer = "test.com",
             ValidAudience = "test.com",
             ValidateIssuerSigningKey = true,
@@ -31,13 +36,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<IdentityController>();
 builder.Services.AddScoped<IFlightRepository, FlightRepository>();
-//builder.Services.AddSwaggerGen(options =>
-//{
-//    options.SchemaFilter<EnumSchemaFilter>();
-//});
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

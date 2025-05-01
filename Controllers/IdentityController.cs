@@ -10,10 +10,18 @@ namespace AirlineTicketsAppWebApi.Controllers;
 
 public class IdentityController
 {
+    private readonly IConfiguration config;
+
+    public IdentityController(IConfiguration _config)
+    {
+        config = _config;
+    }
+
     public string GenerateToken(string type, string username)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
-        var key = "KeyTestKeyTestKeyTestKeyTestKeyTestKeyTestKeyTest"u8.ToArray();
+        //var key = "KeyTestKeyTestKeyTestKeyTestKeyTestKeyTestKeyTest"u8.ToArray();
+        var key = Encoding.UTF8.GetBytes(config["Jwt:Key"]);
 
         var claims = new List<Claim>
         {
