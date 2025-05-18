@@ -20,6 +20,6 @@ public class UserRepository : IUserRepository
 
         const string sql = "SELECT * FROM UserTable WHERE username = @username";
 
-        return await connection.QueryFirstOrDefaultAsync<User>(sql, username);
+        return await connection.QueryFirstOrDefaultAsync<User>(sql, new { username });
     }
 }
