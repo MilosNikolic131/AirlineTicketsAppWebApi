@@ -1,4 +1,5 @@
 ﻿using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Repositories;
 using AirlineTicketsAppWebApi.Utility;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
@@ -9,133 +10,79 @@ namespace AirlineTicketsAppWebApi.Controllers;
 public class ReservationController : ControllerBase
 {
     private readonly string connectionString;
+    private readonly IReservationRepository _reservationRepository;
+    private readonly ILogger<ReservationController> _logger;
 
-    public ReservationController(IConfiguration configuration)
+    public ReservationController(IConfiguration configuration,
+                                 IReservationRepository reservationRepository,
+                                 ILogger<ReservationController> logger)
     {
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
+        _reservationRepository = reservationRepository;
+        _logger = logger;
     }
 
     [SubAuthorize("USER")]
     [HttpPost]
-    public IActionResult ReserveFlight(ReservationDto reservationDto)
+    public async Task<IActionResult> ReserveFlight(ReservationDto reservationDto)
     {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ModelState);
+        }
+
         try
         {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                if (HelperController.validateReservation(reservationDto, connection))
-                {
-                    throw new Exception("Validation failed");
-                }
-
-                string sql = "Insert into reservation " +
-                    "(flightid, userid, numberOfSeats) values " +
-                    "(@flightid, @userid, @numberOfSeats)";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@flightid", reservationDto.Flightid);
-                    command.Parameters.AddWithValue("@userid", reservationDto.Userid);
-                    command.Parameters.AddWithValue("@numberOfSeats", reservationDto.NumberOfSeats);
-
-                    command.ExecuteNonQuery();
-                }
-
-                sql = "UPDATE flight SET numofseats = numofseats - @numberOfSeats WHERE flightid = @flightid";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@numberOfSeats", reservationDto.NumberOfSeats);
-                    command.Parameters.AddWithValue("@flightid", reservationDto.Flightid);
-
-                    command.ExecuteNonQuery();
-                }
-
-            }
+            await _reservationRepository.ReserveFlightAsync(reservationDto);
+            return Ok();
         }
         catch (Exception ex)
         {
-            ModelState.AddModelError("Reservation", $"Exception thrown {ex.ToString()}");
-            return BadRequest(ModelState);
+            _logger.LogError(ex, "Error creating reservation");
+            return StatusCode(500, "An error occurred while processing your request");
         }
-        return Ok();
-
     }
 
     [SubAuthorize("AGENT")]
     [HttpPut("{flightid}/{userid}")]
-    public IActionResult ApproveReservation(int flightid, int userid)
+    public async Task<IActionResult> ApproveReservation(int flightid, int userid)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                string sql = $"Update reservation SET reservationstatus = @reservationstatus WHERE flightid = @flightid AND userid = @userid";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@reservationstatus", ((int) ReservationStatus.APPROVED).ToString());
-                    command.Parameters.AddWithValue("@flightid", flightid);
-                    command.Parameters.AddWithValue("@userid", userid);
-
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            ModelState.AddModelError("Reservation", $"Exception thrown {ex.ToString()}");
             return BadRequest(ModelState);
         }
 
-        return Ok();
+        try
+        {
+            await _reservationRepository.ApproveReservationAsync(flightid, userid);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving reservation");
+            return StatusCode(500, "An error occurred while processing your request");
+        }
     }
 
     [SubAuthorize("USER")]
     [HttpGet("{userid}")]
-    public IActionResult GetReservationsById(int userid)
+    public async Task<IActionResult> GetReservationsById(int userid)
     {
-        List<Reservation> reservations = new List<Reservation>();
-
-        try
+        if (!ModelState.IsValid)
         {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                string sql = $"Select * from reservation where userid = @userid";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@userid", userid);
-
-                    using (var reader = command.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            Reservation reservation = new Reservation();
-
-                            reservation.Flightid = reader.GetInt32(0);
-                            reservation.Userid = reader.GetInt32(1);
-                            reservation.NumberOfSeats = reader.GetInt32(2);
-                            reservation.ReservationStatus = (ReservationStatus) Int32.Parse(reader.GetString(3));
-                            reservations.Add(reservation);
-                        }
-                    }
-
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            ModelState.AddModelError("Flight", $"Exception thrown {ex.ToString()}");
             return BadRequest(ModelState);
         }
 
-        return Ok(reservations);
+        try
+        {
+            await _reservationRepository.GetReservationsByIdAsync(userid);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting reservations from userid");
+            return StatusCode(500, "An error occurred while processing your request");
+        }
     }
+    
 }

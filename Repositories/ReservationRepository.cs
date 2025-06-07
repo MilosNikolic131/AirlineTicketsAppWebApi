@@ -17,19 +17,35 @@ public class ReservationRepository : IReservationRepository
         ?? throw new ArgumentNullException("Missing SQL connection string");
     }
 
-    public async Task<(int FlightId, int UserId)> ReserveFlightAsync(ReservationDto reservationDto)
+    public async Task ReserveFlightAsync(ReservationDto reservationDto)
     {
         await using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
 
-        if (HelperController.validateReservation(reservationDto, connection))
+        using var transaction = await connection.BeginTransactionAsync() as SqlTransaction;
+
+        try
         {
-            throw new Exception("Validation failed");
-        }
-        const string sql = "Insert into reservation " +
-                            "(flightid, userid, numberOfSeats) values " +
-                            "(@flightid, @userid, @numberOfSeats)";
+            if (HelperController.validateReservation(reservationDto, connection))
+            {
+                throw new Exception("Validation failed");
+            }
+            await CreateReservationRecordAsync(reservationDto, connection, transaction);
 
-        return await connection.QuerySingleAsync<(int, int)>(sql, reservationDto);
+            await UpdateAvailableSeatsAsync(reservationDto, connection, transaction);
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
+        //const string sql = "Insert into reservation " +
+        //                    "(flightid, userid, numberOfSeats) values " +
+        //                    "(@flightid, @userid, @numberOfSeats)";
+
+        //return await connection.QuerySingleAsync<(int, int)>(sql, reservationDto);
     }
 
     public async Task<IActionResult> ApproveReservationAsync(int FlightId, int UserId)
@@ -49,6 +65,36 @@ public class ReservationRepository : IReservationRepository
         const string sql = $"Select * from reservation where userid = @userid";
 
         return await connection.QueryAsync<Reservation>(sql, new { UserId });
+    }
+
+    private async Task CreateReservationRecordAsync(ReservationDto reservationDto, SqlConnection connection, SqlTransaction transaction)
+    {
+        const string sql = @"Insert into reservation " +
+                            "(flightid, userid, numberOfSeats) values " +
+                            "(@flightid, @userid, @numberOfSeats)";
+
+        await connection.ExecuteAsync(sql, new
+        {
+            reservationDto.Flightid,
+            reservationDto.Userid,
+            reservationDto.NumberOfSeats,
+        }, transaction);
+    }
+
+    private async Task UpdateAvailableSeatsAsync(ReservationDto reservationDto, SqlConnection connection, SqlTransaction transaction)
+    {
+        const string sql = @"UPDATE flight SET numofseats = numofseats - @numberOfSeats WHERE flightid = @flightid";
+
+        var affectedRows = await connection.ExecuteAsync(sql, new
+        {
+            reservationDto.NumberOfSeats,
+            reservationDto.Flightid
+        }, transaction);
+
+        if (affectedRows != 1)
+        {
+            throw new Exception("Failed to update flight seats");
+        }
     }
 
 }

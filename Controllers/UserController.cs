@@ -1,8 +1,12 @@
 ﻿using AirlineTicketsAppWebApi.Models;
+using AirlineTicketsAppWebApi.Repositories;
 using AirlineTicketsAppWebApi.Utility;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging;
+using System.Data.Common;
 
 namespace AirlineTicketsAppWebApi.Controllers;
 [Route("api/[controller]")]
@@ -10,43 +14,52 @@ namespace AirlineTicketsAppWebApi.Controllers;
 public class UserController : ControllerBase
 {
     private readonly string connectionString;
+    private readonly ILogger<UserController> _logger;
+    private readonly IUserRepository _userRepository;
+    private readonly IPasswordHasher<User> _passwordHasher;
 
-    public UserController(IConfiguration configuration)
+    public UserController(IConfiguration configuration,
+                          ILogger<UserController> logger,
+                          IUserRepository UserRepository,
+                          IPasswordHasher<User> passwordHasher)
     {
-        connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
+        connectionString    = configuration["ConnectionStrings:SqlServerDb"] ?? "";
+        _logger             = logger;
+        _userRepository     = UserRepository;
+        _passwordHasher     = passwordHasher;
     }
 
     [SubAuthorize("ADMIN")]
     [HttpPost]
-    public IActionResult CreateUser(UserDto userDto)
+    public async Task<IActionResult> CreateUser([FromBody] UserDto userDto)
     {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
         try
         {
-            using (var connection = new SqlConnection(connectionString))
+
+            var user = new User
             {
-                connection.Open();
+                Name        = userDto.Name,
+                Type        = userDto.Type,
+                Username    = userDto.Username,
+                Password    = _passwordHasher.HashPassword(null, userDto.Password)
+            };
 
-                string sql = "Insert into UserTable " +
-                    "(name, type, username, password) values " +
-                    "(@name, @type, @username, @password)";
-
-                using (var command = new SqlCommand(sql, connection))
-                {
-                    command.Parameters.AddWithValue("@name", userDto.Name);
-                    command.Parameters.AddWithValue("@type", userDto.Type);
-                    command.Parameters.AddWithValue("@username", userDto.Username);
-                    command.Parameters.AddWithValue("@password", userDto.Password);
-
-                    command.ExecuteNonQuery();
-                }
-
-            }
+            await _userRepository.CreateUserAsync(user);
+            return StatusCode(201, $"User {user.Username} created successfully");
+        }
+        catch (DbException ex)
+        {
+            _logger.LogError(ex, "Error creating user {Username}", userDto.Username);
+            return Conflict("Username already exists");
         }
         catch (Exception ex)
         {
-            ModelState.AddModelError("User", $"Exception thrown {ex.ToString()}");
-            return BadRequest(ModelState);
+            _logger.LogError(ex, "Unexpected error creating user");
+            return StatusCode(500, "Internal server error");
         }
-        return Ok();
     }
+    
 }

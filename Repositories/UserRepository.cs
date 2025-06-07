@@ -22,4 +22,17 @@ public class UserRepository : IUserRepository
 
         return await connection.QueryFirstOrDefaultAsync<User>(sql, new { username });
     }
+
+    public async Task CreateUserAsync(User user)
+    {
+        await using var connection = new SqlConnection(_connectionString);
+
+        const string sql = @"
+            INSERT INTO UserTable 
+            (Name, Type, Username, Password) 
+            VALUES 
+            (@Name, @Type, @Username, @Password)";
+
+        await connection.ExecuteAsync(sql, user);
+    }
 }
