@@ -23,6 +23,14 @@ public class UserRepository : IUserRepository
         return await connection.QueryFirstOrDefaultAsync<User>(sql, new { username });
     }
 
+    public async Task<User?> GetUserByIdAsync(int userId)
+    {
+        const string sql = "SELECT * FROM UserTable WHERE userid = @UserId";
+
+        await using var connection = new SqlConnection(_connectionString);
+        return await connection.QueryFirstOrDefaultAsync<User>(sql, new { userid = userId });
+    }
+
     public async Task CreateUserAsync(User user)
     {
         await using var connection = new SqlConnection(_connectionString);

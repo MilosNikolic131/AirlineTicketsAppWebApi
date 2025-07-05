@@ -12,10 +12,12 @@ public class ReservationController : ControllerBase
     private readonly string connectionString;
     private readonly IReservationRepository _reservationRepository;
     private readonly ILogger<ReservationController> _logger;
+   
 
     public ReservationController(IConfiguration configuration,
                                  IReservationRepository reservationRepository,
-                                 ILogger<ReservationController> logger)
+                                 ILogger<ReservationController> logger
+                                 )
     {
         connectionString = configuration["ConnectionStrings:SqlServerDb"] ?? "";
         _reservationRepository = reservationRepository;

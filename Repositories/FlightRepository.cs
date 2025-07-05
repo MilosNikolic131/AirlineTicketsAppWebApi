@@ -31,11 +31,11 @@ public class FlightRepository : IFlightRepository
         return await connection.QuerySingleAsync<int>(sql, flightDto);
     }
 
-    public async Task<FlightDto?> GetFlightByIdAsync(int id)
+    public async Task<Flight?> GetFlightByIdAsync(int id)
     {
         await using var connection = new SqlConnection(_connectionString);
         const string sql = "SELECT * FROM Flights WHERE flightid = @Id";
-        return await connection.QuerySingleOrDefaultAsync<FlightDto>(sql, new { Id = id });
+        return await connection.QuerySingleOrDefaultAsync<Flight>(sql, new { Id = id });
     }
 
     public async Task<IEnumerable<Flight>> GetFlightsFromToAsync(FlightDestination flightFrom, FlightDestination flightTo)

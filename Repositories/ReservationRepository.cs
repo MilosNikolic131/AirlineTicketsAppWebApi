@@ -10,11 +10,13 @@ namespace AirlineTicketsAppWebApi.Repositories;
 public class ReservationRepository : IReservationRepository
 {
     private readonly string _connectionString;
+    private readonly IReservationValidator _reservationValidator;
 
-    public ReservationRepository(IConfiguration config)
+    public ReservationRepository(IConfiguration config, IReservationValidator reservationValidator)
     {
         _connectionString = config.GetConnectionString("SqlServerDb")
         ?? throw new ArgumentNullException("Missing SQL connection string");
+        _reservationValidator = reservationValidator;
     }
 
     public async Task ReserveFlightAsync(ReservationDto reservationDto)
@@ -26,7 +28,7 @@ public class ReservationRepository : IReservationRepository
 
         try
         {
-            if (HelperController.validateReservation(reservationDto, connection))
+            if (!await _reservationValidator.ValidateReservationAsync(reservationDto))
             {
                 throw new Exception("Validation failed");
             }
