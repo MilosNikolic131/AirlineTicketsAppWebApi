@@ -32,9 +32,11 @@ public class ReservationRepository : IReservationRepository
             {
                 throw new Exception("Validation failed");
             }
-            await CreateReservationRecordAsync(reservationDto, connection, transaction);
 
-            await UpdateAvailableSeatsAsync(reservationDto, connection, transaction);
+            Task[] tasks;
+
+            Task.WaitAll(tasks = [CreateReservationRecordAsync(reservationDto, connection, transaction),
+                                  UpdateAvailableSeatsAsync(reservationDto, connection, transaction)]);
 
             await transaction.CommitAsync();
         }

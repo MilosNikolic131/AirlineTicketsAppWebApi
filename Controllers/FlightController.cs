@@ -1,15 +1,9 @@
 ﻿using AirlineTicketsAppWebApi.Models;
 using AirlineTicketsAppWebApi.Repositories;
 using AirlineTicketsAppWebApi.Utility;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Microsoft.IdentityModel.Tokens;
 using System.Data.Common;
-using System.IdentityModel.Tokens.Jwt;
-
 
 namespace AirlineTicketsAppWebApi.Controllers;
 [Route("api/[controller]")]
