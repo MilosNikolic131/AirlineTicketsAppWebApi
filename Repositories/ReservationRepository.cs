@@ -45,11 +45,6 @@ public class ReservationRepository : IReservationRepository
             await transaction.RollbackAsync();
             throw;
         }
-        //const string sql = "Insert into reservation " +
-        //                    "(flightid, userid, numberOfSeats) values " +
-        //                    "(@flightid, @userid, @numberOfSeats)";
-
-        //return await connection.QuerySingleAsync<(int, int)>(sql, reservationDto);
     }
 
     public async Task<IActionResult> ApproveReservationAsync(int FlightId, int UserId)

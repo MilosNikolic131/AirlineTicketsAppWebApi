@@ -76,7 +76,7 @@ public class FlightController : ControllerBase
         }
     }
 
-    [SubAuthorize("USER")]
+    [SubAuthorize("USER", "ADMIN")]
     [HttpGet("{flightFrom}/{flightTo}")]
     public async Task<IActionResult> GetFlights(
     FlightDestination flightFrom,
@@ -100,7 +100,17 @@ public class FlightController : ControllerBase
     {
         try
         {
-            bool success = await _flightRepository.CancelFlightAsync(flightid);
+            bool success = false;
+            Flight flight = (Flight) await GetFlightById(flightid);
+            if (flight != null && flight.FlightStatus == "active")
+            {
+                success = await _flightRepository.CancelFlightAsync(flightid);
+
+            }
+            else if (flight.FlightStatus == "canceled")
+            {
+                return StatusCode(400, "Cannot cancel canceled flight");
+            }
             return success ? NoContent() : NotFound();
 
         }
