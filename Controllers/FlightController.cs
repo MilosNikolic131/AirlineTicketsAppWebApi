@@ -61,13 +61,8 @@ public class FlightController : ControllerBase
     {
         try
         {
-            using (var connection = new SqlConnection(connectionString))
-            {
-                connection.Open();
-
-                var flights = await _flightRepository.GetAllFlightsAsync();
-                return Ok(flights.ToList().Where(flight => flight.NumOfSeats > 0).ToList());
-            }
+            var flights = await _flightRepository.GetAllFlightsAsync();
+            return Ok(flights.ToList().Where(flight => flight.NumOfSeats > 0).ToList());
         }
         catch (Exception ex)
         {
